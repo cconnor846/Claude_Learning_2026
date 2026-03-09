@@ -262,3 +262,52 @@ LOG_LEVEL=INFO
 - No structured data / Text-to-SQL (Phase 8, later)
 - No TypeScript `any` types in the frontend
 - No `requirements.txt` — use `pyproject.toml` with uv only
+
+---
+
+## Build Progress
+
+### Phase 1 — Infrastructure & Skeleton ⚠️ MOSTLY DONE (pre-Phase 2 steps pending)
+
+**Completed (committed + pushed to main on 2026-03-08)**
+
+| File | Purpose |
+|---|---|
+| `docker-compose.yml` | All 9 services: postgres/pgvector, redis, minio, langfuse, prometheus, grafana, backend, worker, frontend |
+| `docker-compose.dev.yml` | Hot-reload overrides for backend, worker, frontend |
+| `pyproject.toml` | uv project config with full dependency list |
+| `backend/Dockerfile` | Python 3.12-slim + uv, build context is repo root |
+| `backend/__init__.py` | Makes backend a Python package |
+| `backend/main.py` | FastAPI app with lifespan, CORS, `GET /health` (HealthResponse Pydantic model), stubbed router includes |
+| `backend/core/__init__.py` | Package init |
+| `backend/core/config.py` | Pydantic Settings class loading all env vars from `.env` |
+| `backend/api/__init__.py` | Package init |
+| `backend/api/deps.py` | Stub for future DB session / dependency injection |
+| `backend/api/routes/__init__.py` | Package init |
+| `.env.example` | All required env vars documented with safe placeholder defaults |
+| `infra/prometheus.yml` | Scrapes backend `/metrics` every 15s |
+| `infra/postgres/init.sql` | Auto-creates `langfuse` database on first postgres start |
+| `infra/grafana/dashboards/.gitkeep` | Placeholder for future dashboard provisioning |
+
+**Pending before Phase 2 can start**
+
+- [ ] `cp .env.example .env` and fill in ANTHROPIC_API_KEY, VOYAGE_API_KEY, and any other real values
+- [ ] `uv sync` — install Python deps locally (editor autocomplete, local test runs)
+- [ ] `docker compose up postgres redis` — verify postgres/pgvector starts cleanly and `langfuse` DB is created by init script
+
+**Nothing has been run yet. No business logic exists. Pure skeleton.**
+
+---
+
+### Phase 2 — Database Models + Migrations (NOT STARTED)
+
+Next up:
+- SQLAlchemy 2.0 async models: documents, chunks, embeddings, experiments, prompts tables
+- Alembic init + first migration
+- Document lineage fields on chunk model (source doc ID, chunking strategy, embedding model, page number)
+
+---
+
+### Phase 3+ — Not started
+
+Ingestion pipeline, embedding, retrieval, generation, evaluation, frontend — all pending.

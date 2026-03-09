@@ -1,0 +1,27 @@
+# Dev overrides — hot reload, volume mounts, debug ports.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+
+  backend:
+    volumes:
+      - .:/app
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      LOG_LEVEL: DEBUG
+
+  worker:
+    volumes:
+      - .:/app
+    command: celery -A backend.workers.celery_app worker --loglevel=debug --concurrency=1
+    environment:
+      LOG_LEVEL: DEBUG
+
+  frontend:
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    environment:
+      NODE_ENV: development

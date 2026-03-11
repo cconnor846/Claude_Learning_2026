@@ -289,19 +289,32 @@ LOG_LEVEL=INFO
 | `infra/postgres/init.sql` | Auto-creates `langfuse` database on first postgres start |
 | `infra/grafana/dashboards/.gitkeep` | Placeholder for future dashboard provisioning |
 
-**Pending before Phase 2 can start**
+**Completed on 2026-03-09**
 
-- [ ] `cp .env.example .env` and fill in ANTHROPIC_API_KEY, VOYAGE_API_KEY, and any other real values
-- [ ] `uv sync` — install Python deps locally (editor autocomplete, local test runs)
-- [ ] `docker compose up postgres redis` — verify postgres/pgvector starts cleanly and `langfuse` DB is created by init script
+- [x] `cp .env.example .env` and filled in ANTHROPIC_API_KEY and VOYAGE_API_KEY
+- [x] `uv sync` — 121 packages installed successfully into `.venv`
 
-**Nothing has been run yet. No business logic exists. Pure skeleton.**
+**Completed on 2026-03-10**
+
+- [x] Installed Docker Engine directly in WSL2 Ubuntu 24.04 (Docker Desktop for Windows not used)
+  - Added docker apt repo, installed docker-ce + docker-compose-plugin
+  - Added user to `docker` group
+  - Fixed healthcheck bug in `docker-compose.yml`: added `-d ${POSTGRES_DB}` to `pg_isready` command
+  - `docker compose up postgres redis` — postgres/pgvector starts cleanly
+  - `langfuse` DB confirmed created by `infra/postgres/init.sql`
+  - All 5 expected databases verified: `rag_platform`, `langfuse`, `postgres`, `template0`, `template1`
+
+**Phase 1 complete. No pending items.**
+
+**Business logic: none yet. Pure skeleton.**
 
 ---
 
 ### Phase 2 — Database Models + Migrations (NOT STARTED)
 
-Next up:
+**Start next session by planning Phase 2.**
+
+Planned work:
 - SQLAlchemy 2.0 async models: documents, chunks, embeddings, experiments, prompts tables
 - Alembic init + first migration
 - Document lineage fields on chunk model (source doc ID, chunking strategy, embedding model, page number)

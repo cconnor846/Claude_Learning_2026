@@ -267,7 +267,7 @@ LOG_LEVEL=INFO
 
 ## Build Progress
 
-### Phase 1 — Infrastructure & Skeleton ⚠️ MOSTLY DONE (pre-Phase 2 steps pending)
+### Phase 1 — Infrastructure & Skeleton ✅ COMPLETE
 
 **Completed (committed + pushed to main on 2026-03-08)**
 
@@ -310,17 +310,51 @@ LOG_LEVEL=INFO
 
 ---
 
-### Phase 2 — Database Models + Migrations (NOT STARTED)
+### Phase 2 — Database Models + Migrations ✅ COMPLETE
 
-**Start next session by planning Phase 2.**
+**Completed on 2026-03-12**
 
-Planned work:
-- SQLAlchemy 2.0 async models: documents, chunks, embeddings, experiments, prompts tables
-- Alembic init + first migration
-- Document lineage fields on chunk model (source doc ID, chunking strategy, embedding model, page number)
+| File | Purpose |
+|---|---|
+| `pyproject.toml` | Added `pgvector>=0.4.2` dependency |
+| `backend/models/database.py` | `Base` (DeclarativeBase), async engine, `async_session_factory` |
+| `backend/models/tables/documents.py` | `Document` + `Chunk` ORM models, `DocumentStatus` enum |
+| `backend/models/tables/embeddings.py` | `Embedding` model with `Vector(1024)` (voyage-3 dim) |
+| `backend/models/tables/experiments.py` | `Experiment` + `EvalResult` models, `ExperimentStatus` enum |
+| `backend/models/tables/prompts.py` | `PromptVersion` model, unique `(name, version)` constraint |
+| `backend/api/deps.py` | Real `get_db()` async dependency — auto-commit/rollback pattern |
+| `backend/main.py` | Lifespan pings DB on startup, disposes engine on shutdown |
+| `alembic.ini` | Alembic config — URL set from settings in env.py, not hardcoded |
+| `backend/migrations/env.py` | Full async Alembic env (replaced sync default) |
+| `backend/migrations/versions/3b1fa3c60faa_create_initial_tables.py` | First migration — all 6 tables + pgvector extension |
+
+**Key decisions recorded:**
+- `expire_on_commit=False` on session factory — prevents `MissingGreenlet` errors in async context
+- `server_default=func.now()` on all timestamps — DB sets time, not Python
+- `JSONB` (not `JSON`) on all JSON columns — indexed and queryable in Postgres
+- `ondelete="CASCADE"` on all FKs — DB enforces cascading deletes
+- `metadata_` attribute with `mapped_column("metadata", ...)` — avoids SQLAlchemy reserved name conflict
+- `NullPool` in Alembic env.py — migrations are one-shot, don't hold connections between steps
+- Migration workflow: `docker compose run --rm backend uv run alembic upgrade head` (not baked into container startup)
+
+**Verified in Postgres:** 7 tables, `vector(1024)` column, both enum types, pgvector v0.8.2 installed, revision `3b1fa3c60faa` tracked.
 
 ---
 
-### Phase 3+ — Not started
+### Phase 3 — Ingestion Pipeline (NOT STARTED)
 
-Ingestion pipeline, embedding, retrieval, generation, evaluation, frontend — all pending.
+**Start next session by planning Phase 3.**
+
+Planned work:
+- `POST /api/v1/documents` upload endpoint — store raw file in MinIO, create Document record
+- Celery task: parse (pymupdf) → chunk (fixed-size strategy first) → embed (Voyage AI) → store chunks + embeddings
+- `GET /api/v1/documents` list + status polling endpoint
+- `backend/core/storage.py` MinIO client wrapper
+- `backend/services/ingestion/parser.py`, `chunker.py`, `embedder.py`
+- `backend/workers/celery_app.py` + `backend/workers/tasks/ingest.py`
+
+---
+
+### Phase 4+ — Not started
+
+Retrieval, generation, evaluation, frontend — all pending.

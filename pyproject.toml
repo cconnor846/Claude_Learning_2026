@@ -27,6 +27,7 @@ dependencies = [
     "prometheus-fastapi-instrumentator>=7.0.0",
     # Object storage
     "minio>=7.2.0",
+    "pgvector>=0.4.2",
 ]
 
 [dependency-groups]

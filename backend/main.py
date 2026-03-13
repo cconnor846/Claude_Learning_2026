@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.core.config import settings
+from backend.models.database import engine
 
 
 # ---------------------------------------------------------------------------
@@ -14,9 +15,13 @@ from backend.core.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # Startup: initialise DB pool, storage clients, etc. (added per phase)
+    # Startup: verify DB connectivity and initialise the connection pool.
+    # Fails fast with a clear error if postgres is unreachable.
+    async with engine.begin() as conn:
+        await conn.run_sync(lambda _: None)
     yield
-    # Shutdown: clean up connections
+    # Shutdown: close all connections in the pool gracefully.
+    await engine.dispose()
 
 
 # ---------------------------------------------------------------------------

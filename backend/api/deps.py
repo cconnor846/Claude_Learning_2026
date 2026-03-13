@@ -1,12 +1,22 @@
-"""FastAPI dependency injection.
+"""FastAPI dependency injection."""
 
-Add shared dependencies here (DB session, storage client, etc.)
-as each phase is implemented.
-"""
+from collections.abc import AsyncGenerator
 
-# from sqlalchemy.ext.asyncio import AsyncSession
-# from backend.models.database import async_session_factory
-#
-# async def get_db() -> AsyncGenerator[AsyncSession, None]:
-#     async with async_session_factory() as session:
-#         yield session
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.models.database import async_session_factory
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Yield an async database session.
+
+    Auto-commits on success, rolls back on any exception. Routes that need
+    explicit transaction control can call session.begin() directly.
+    """
+    async with async_session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

@@ -341,20 +341,49 @@ LOG_LEVEL=INFO
 
 ---
 
-### Phase 3 — Ingestion Pipeline (NOT STARTED)
+### Phase 3 — Ingestion Pipeline ✅ COMPLETE
 
-**Start next session by planning Phase 3.**
+**Completed on 2026-03-12**
 
-Planned work:
-- `POST /api/v1/documents` upload endpoint — store raw file in MinIO, create Document record
-- Celery task: parse (pymupdf) → chunk (fixed-size strategy first) → embed (Voyage AI) → store chunks + embeddings
-- `GET /api/v1/documents` list + status polling endpoint
-- `backend/core/storage.py` MinIO client wrapper
-- `backend/services/ingestion/parser.py`, `chunker.py`, `embedder.py`
-- `backend/workers/celery_app.py` + `backend/workers/tasks/ingest.py`
+| File | Purpose |
+|---|---|
+| `backend/core/storage.py` | Async MinIO wrapper (`upload_file`, `download_file`, `ensure_bucket`) using `run_in_executor` |
+| `backend/services/ingestion/parser.py` | PDF (pymupdf) + plain text parser → `ParsedDocument` with per-page texts |
+| `backend/services/ingestion/chunker.py` | `BaseChunker` ABC + `FixedSizeChunker` (1000 chars, 200 overlap, lineage in metadata) |
+| `backend/services/ingestion/embedder.py` | `BaseEmbedder` ABC + `VoyageEmbedder` (batch=32, exponential backoff on rate limit) |
+| `backend/workers/celery_app.py` | Celery config — `ingestion` queue, `task_acks_late=True`, `prefetch_multiplier=1` |
+| `backend/workers/tasks/ingest.py` | 7-step async pipeline: process → download → parse → chunk → embed → insert → ready |
+| `backend/api/routes/documents.py` | 4 endpoints: POST upload (202), GET list, GET detail+chunk count, GET chunks |
+| `pyproject.toml` | Added `python-multipart` (required by FastAPI for file uploads) |
+
+**Updated files:**
+- `backend/main.py` — documents router wired in, `storage.ensure_bucket()` in lifespan
+- `docker-compose.yml` — `-Q ingestion` on worker command, MinIO health dependency on backend + worker
+
+**Key decisions recorded:**
+- `asyncio.run()` bridge in Celery task — no gevent/eventlet required
+- Lazy imports inside `_async_pipeline` — avoids circular imports at Celery task discovery time
+- Separate fresh session in `_mark_failed()` — rolled-back session is not safe to reuse
+- `task_acks_late=True` — task re-queued if worker crashes mid-pipeline
+- `input_type="document"` in VoyageEmbedder — retrieval service must use `"query"` in Phase 4
+- Token counting deferred — `token_count` column left null, to be filled in Phase 4+
+- Filename stored as-is (note: sanitise for production) — UUID prefix on object key prevents MinIO path traversal
 
 ---
 
-### Phase 4+ — Not started
+### Phase 4 — Retrieval (NOT STARTED)
 
-Retrieval, generation, evaluation, frontend — all pending.
+**Start next session by planning Phase 4.**
+
+Planned work:
+- `backend/services/retrieval/vector.py` — pgvector similarity search
+- `backend/services/retrieval/bm25.py` — BM25 keyword search
+- `backend/services/retrieval/hybrid.py` — hybrid search + reranking
+- `GET /api/v1/search` endpoint with Pydantic request/response models
+- Voyage AI query embedding with `input_type="query"`
+
+---
+
+### Phase 5+ — Not started
+
+Generation (Claude), evaluation, frontend — all pending.

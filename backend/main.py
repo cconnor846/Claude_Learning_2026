@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.core.config import settings
+from backend.core.storage import storage
 from backend.models.database import engine
 
 
@@ -15,10 +16,11 @@ from backend.models.database import engine
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # Startup: verify DB connectivity and initialise the connection pool.
-    # Fails fast with a clear error if postgres is unreachable.
+    # Startup: verify DB connectivity and ensure MinIO bucket exists.
+    # Both fail fast with a clear error if the service is unreachable.
     async with engine.begin() as conn:
         await conn.run_sync(lambda _: None)
+    await storage.ensure_bucket()
     yield
     # Shutdown: close all connections in the pool gracefully.
     await engine.dispose()
@@ -69,8 +71,12 @@ async def health() -> HealthResponse:
 # Routers (included as each phase is implemented)
 # ---------------------------------------------------------------------------
 
-# from backend.api.routes import documents, chunks, search, chat, evals, metrics
-# app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
+from backend.api.routes import documents
+
+app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
+
+# Uncommented as each phase is implemented:
+# from backend.api.routes import chunks, search, chat, evals, metrics
 # app.include_router(chunks.router, prefix="/api/v1/chunks", tags=["chunks"])
 # app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 # app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])

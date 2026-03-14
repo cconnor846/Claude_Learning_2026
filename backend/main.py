@@ -71,14 +71,14 @@ async def health() -> HealthResponse:
 # Routers (included as each phase is implemented)
 # ---------------------------------------------------------------------------
 
-from backend.api.routes import documents
+from backend.api.routes import documents, search
 
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
+app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 
 # Uncommented as each phase is implemented:
-# from backend.api.routes import chunks, search, chat, evals, metrics
+# from backend.api.routes import chunks, chat, evals, metrics
 # app.include_router(chunks.router, prefix="/api/v1/chunks", tags=["chunks"])
-# app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 # app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])
 # app.include_router(evals.router, prefix="/api/v1/evals", tags=["evals"])
 # app.include_router(metrics.router, prefix="/metrics", tags=["metrics"])

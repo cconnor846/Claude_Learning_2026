@@ -107,3 +107,16 @@ class VoyageEmbedder(BaseEmbedder):
 
         # Unreachable, but satisfies the type checker
         raise EmbeddingError("Embedding failed unexpectedly")
+
+
+class VoyageQueryEmbedder(VoyageEmbedder):
+    """VoyageEmbedder configured for search query embedding.
+
+    Voyage AI's voyage-3 model is asymmetric: documents must be embedded with
+    input_type="document" (VoyageEmbedder) and queries with input_type="query"
+    (this class). Mixing them degrades retrieval quality.
+
+    Use this class exclusively in the search path. Never use it during ingestion.
+    """
+
+    INPUT_TYPE: str = "query"

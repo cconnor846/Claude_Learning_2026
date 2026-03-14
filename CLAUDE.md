@@ -398,18 +398,44 @@ LOG_LEVEL=INFO
 
 ---
 
-### Phase 5 — Generation (NOT STARTED)
+### Phase 5 — Generation ✅ COMPLETE
 
-**Start next session by planning Phase 5.**
+**Completed on 2026-03-13**
 
-Planned work:
-- `backend/services/generation/claude.py` — Anthropic SDK wrapper (streaming + non-streaming)
-- `backend/services/generation/prompts.py` — versioned prompt templates
-- `backend/api/routes/chat.py` — streaming chat endpoint (`GET /api/v1/chat`)
-- RAG pipeline: search → retrieve chunks → build prompt → stream Claude response
+| File | Purpose |
+|---|---|
+| `backend/services/generation/__init__.py` | Package init |
+| `backend/services/generation/prompts.py` | `PromptTemplate` frozen dataclass + `RAG_QA_V1` template; `render_user_message()` builds context block from chunks |
+| `backend/services/generation/claude.py` | `ClaudeClient` with `stream()` (async generator, yields text tokens) and `complete()` (non-streaming, for eval); `ClaudeModel` enum (sonnet/haiku) |
+| `backend/api/routes/chat.py` | `POST /api/v1/chat` — full RAG pipeline, streams SSE |
+
+**Updated files:**
+- `backend/main.py` — chat router wired in at `/api/v1/chat`
+
+**Key decisions recorded:**
+- SSE event order: `sources` first (before generation), then `token` events, then `done` — UI can render source cards while Claude streams
+- Sources contain full chunk text — required for the UI source card design
+- `_register_prompt()` uses `INSERT ... ON CONFLICT DO NOTHING` — first request writes, all subsequent requests are no-ops; no ORM to avoid reserved-name conflicts with `text()`
+- All DB work (retrieval + prompt registration) completes inside the endpoint function before `StreamingResponse` is returned — the SSE generator is DB-free and only calls the Anthropic API
+- `ClaudeClient.stream()` accepts `list[MessageParam]` — already multi-turn capable at the SDK level; only the route layer is single-turn for now
+- `complete()` defaults to haiku — intended for eval/batch tasks (Phase 6)
+- `X-Accel-Buffering: no` header disables nginx buffering for SSE
 
 ---
 
-### Phase 6+ — Not started
+### Phase 6 — Evaluation (NOT STARTED)
 
-Evaluation, frontend — all pending.
+**Start next session by planning Phase 6.**
+
+Planned work:
+- `backend/services/evaluation/synthetic.py` — QA pair generation from docs
+- `backend/services/evaluation/metrics.py` — faithfulness, relevance, recall
+- `backend/workers/tasks/eval.py` — async eval run tasks
+- `backend/api/routes/evals.py` — eval run endpoints
+- Eval dataset storage in `evals/datasets/`
+
+---
+
+### Phase 7+ — Not started
+
+Frontend, observability (LangFuse wiring) — all pending.

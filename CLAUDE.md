@@ -371,19 +371,45 @@ LOG_LEVEL=INFO
 
 ---
 
-### Phase 4 — Retrieval (NOT STARTED)
+### Phase 4 — Retrieval ✅ COMPLETE
 
-**Start next session by planning Phase 4.**
+**Completed on 2026-03-13**
 
-Planned work:
-- `backend/services/retrieval/vector.py` — pgvector similarity search
-- `backend/services/retrieval/bm25.py` — BM25 keyword search
-- `backend/services/retrieval/hybrid.py` — hybrid search + reranking
-- `GET /api/v1/search` endpoint with Pydantic request/response models
-- Voyage AI query embedding with `input_type="query"`
+| File | Purpose |
+|---|---|
+| `backend/services/retrieval/__init__.py` | Shared `RetrievedChunk` Pydantic model — single return type for all strategies |
+| `backend/services/retrieval/vector.py` | `VectorRetriever` — pgvector cosine distance (`<=>`), joins embeddings → chunks → documents |
+| `backend/services/retrieval/bm25.py` | `BM25Retriever` — in-memory `BM25Okapi` index, zero-score results excluded |
+| `backend/services/retrieval/hybrid.py` | `HybridRetriever` — RRF fusion (k=60) of vector + BM25 at 3× candidate count |
+| `backend/api/routes/search.py` | `POST /api/v1/search` — strategy dispatch, embedding skipped for bm25-only requests |
+| `backend/services/ingestion/embedder.py` | Added `VoyageQueryEmbedder` subclass (`INPUT_TYPE = "query"`) |
+
+**Updated files:**
+- `backend/main.py` — search router wired in at `/api/v1/search`
+
+**Key decisions recorded:**
+- `VoyageQueryEmbedder` is a one-line subclass of `VoyageEmbedder` — keeps document and query embedding paths explicit and separate
+- Score normalised to "higher = better" across all strategies: vector uses `1 - cosine_distance`, BM25 uses raw BM25 score, hybrid uses RRF score
+- BM25 tokenisation: lowercase + `re.sub(r"[^\w\s]", "", text)` + whitespace split — no NLTK dependency
+- BM25 index built in-memory per request (sufficient at learning-scale; TODO: cache index keyed on corpus size)
+- `document_ids` filter applied at SQL level in both vector and BM25 queries — not post-filtered in Python
+- Search response enriched with `document_filename` via JOIN to documents table — avoids UUID-only results
+- No new Alembic migration required — Phase 4 is read-only against existing schema
 
 ---
 
-### Phase 5+ — Not started
+### Phase 5 — Generation (NOT STARTED)
 
-Generation (Claude), evaluation, frontend — all pending.
+**Start next session by planning Phase 5.**
+
+Planned work:
+- `backend/services/generation/claude.py` — Anthropic SDK wrapper (streaming + non-streaming)
+- `backend/services/generation/prompts.py` — versioned prompt templates
+- `backend/api/routes/chat.py` — streaming chat endpoint (`GET /api/v1/chat`)
+- RAG pipeline: search → retrieve chunks → build prompt → stream Claude response
+
+---
+
+### Phase 6+ — Not started
+
+Evaluation, frontend — all pending.

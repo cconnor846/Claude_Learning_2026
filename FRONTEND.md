@@ -664,32 +664,36 @@ Steps marked **[BACKEND]** require backend changes before the frontend step can 
 
 ### Prerequisites (backend changes, do these first)
 
-**P1 — Pipeline step field**
-- Add `pipeline_step: str | None` to `Document` ORM model + API response schema
-- Update `backend/workers/tasks/ingest.py` to set the field at each pipeline step
-- Alembic migration required
+**P1 — Pipeline step field** ✅ COMPLETE
+- `pipeline_step: str | None` added to `Document` ORM + `DocumentListItem` response
+- `ingest.py` sets step at each stage: `parsing` → `chunking` → `embedding` → `storing` → `None` on ready
+- Migration `b7d3f1a92e05` applied
 
-**P2 — Judge reasoning columns**
-- Add `faithfulness_reasoning: str | None` and `relevance_reasoning: str | None` to `EvalResult`
-- Update `backend/services/evaluation/metrics.py` to parse reasoning from judge response JSON
-- Update `backend/workers/tasks/eval.py` to persist reasoning
-- Alembic migration required
+**P2 — Judge reasoning columns** ✅ COMPLETE
+- `faithfulness_reasoning` + `relevance_reasoning` added to `EvalResult` ORM + `EvalResultItem` response
+- Judge prompt updated to return `{"rating": 1-5, "reasoning": "..."}` JSON; `max_tokens` raised to 150
+- `eval.py` task unpacks and persists reasoning tuples
+- Migration `b7d3f1a92e05` applied
 
 ---
 
 ### Frontend build steps
 
-1. **`lib/glossary.ts`** — static GLOSSARY map (all term definitions); no deps
-2. **`lib/types.ts` + `lib/api.ts`** — add `pipeline_step` to `DocumentListItem`; add reasoning fields to `EvalResultItem`
-3. **`components/shared/GlossaryTooltip.tsx`** — thin wrapper, depends only on glossary + shadcn Tooltip
-4. **`components/shared/ScoreBar.tsx` + `RelativeScoreBar.tsx`** — shared scoring visuals
-5. **`lib/hooks/useDocuments.ts`** — SWR + polling logic
-6. **`components/documents/PipelineStepBadge.tsx`** — step sequence component [requires P1]
-7. **`/documents` page** — upload + list (with PipelineStepBadge) + drawer (with enhanced ChunkInspector + GlossaryTooltip)
-8. **`lib/hooks/useChat.ts`** — SSE state machine
-9. **`/chat` page** — ConfigPanel (with GlossaryTooltips), ChatThread, SourceCards (with RelativeScoreBar), RetrievalExplainer
-10. **`lib/hooks/useExperiments.ts` + `useExperiment.ts`**
-11. **`/experiments` page** — generate + create run + list + CompareTable (URL-driven compare mode)
-12. **`/experiments/[id]` page** — detail + results table with judge reasoning expand rows [requires P2]
-13. **`/dashboard` page** — pulls from hooks already built
-14. **NavBar + layout** — wire navigation, test full flow
+1. ✅ **`lib/glossary.ts`** — static GLOSSARY map (all term definitions); no deps
+2. ✅ **`lib/types.ts` + `lib/api.ts`** — all TypeScript interfaces + typed fetch wrappers
+3. ✅ **`components/shared/GlossaryTooltip.tsx`** — thin wrapper, depends only on glossary + shadcn Tooltip
+4. ✅ **`components/shared/ScoreBar.tsx` + `RelativeScoreBar.tsx`** — shared scoring visuals
+5. ✅ **`components/shared/StatusBadge.tsx`** — colored badge, spinner for processing/running, tooltip for failed
+6. ✅ **`components/shared/ChunkCard.tsx`** — collapsible content preview, reused across UI
+7. ✅ **`lib/hooks/useDocuments.ts`** — SWR + 3s polling while docs in flight
+8. ✅ **`lib/hooks/useDocument.ts`** — single doc + chunks SWR hooks
+9. ✅ **`lib/hooks/useExperiments.ts`** — SWR + 5s polling while experiments running
+10. ✅ **`lib/hooks/useExperiment.ts`** — single experiment SWR hook
+11. ✅ **`lib/hooks/useChat.ts`** — SSE state machine (idle → sending → streaming_sources → streaming_tokens → done → error)
+12. **`components/documents/PipelineStepBadge.tsx`** — step sequence component [requires P1]
+13. **`/documents` page** — UploadZone + DocumentTable (with PipelineStepBadge) + DocumentDrawer + ChunkInspector (with GlossaryTooltip + chunk metadata enhancements)
+14. **`/chat` page** — ConfigPanel (with GlossaryTooltips), ChatThread, SourceCards (with RelativeScoreBar), RetrievalExplainer
+15. **`/experiments` page** — GenerateDatasetForm + CreateRunDialog + ExperimentTable (with GlossaryTooltips) + CompareTable (URL-driven compare mode)
+16. **`/experiments/[id]` page** — AggregateScores + ResultsTable with judge reasoning expand rows [requires P2]
+17. **`/dashboard` page** — stat cards + recent documents + recent experiments + quick actions
+18. **NavBar + root layout** — wire navigation, TooltipProvider, Toaster

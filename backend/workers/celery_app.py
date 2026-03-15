@@ -11,7 +11,7 @@ celery_app = Celery(
     "rag_platform",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["backend.workers.tasks.ingest"],
+    include=["backend.workers.tasks.ingest", "backend.workers.tasks.eval"],
 )
 
 celery_app.conf.update(
@@ -32,6 +32,9 @@ celery_app.conf.update(
     task_routes={
         "backend.workers.tasks.ingest.run_ingestion_pipeline": {
             "queue": "ingestion",
+        },
+        "backend.workers.tasks.eval.run_eval_experiment": {
+            "queue": "eval",
         },
     },
 )

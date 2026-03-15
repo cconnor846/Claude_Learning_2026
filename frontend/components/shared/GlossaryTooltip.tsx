@@ -22,10 +22,8 @@ export function GlossaryTooltip({ term, children }: GlossaryTooltipProps) {
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="cursor-help underline decoration-dotted decoration-muted-foreground/50 underline-offset-2">
-          {children}
-        </span>
+      <TooltipTrigger render={<span className="cursor-help underline decoration-dotted decoration-muted-foreground/50 underline-offset-2" />}>
+        {children}
       </TooltipTrigger>
       <TooltipContent className="max-w-xs text-sm leading-snug">
         <p>{definition}</p>

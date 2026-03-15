@@ -48,7 +48,7 @@ export function StatusBadge({ status, errorMessage }: StatusBadgeProps) {
   if (status === "failed" && errorMessage) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{badge}</TooltipTrigger>
+        <TooltipTrigger render={<span />}>{badge}</TooltipTrigger>
         <TooltipContent className="max-w-xs text-sm">
           <p>{errorMessage}</p>
         </TooltipContent>

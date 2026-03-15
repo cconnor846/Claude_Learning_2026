@@ -32,10 +32,8 @@ export function ChunkCard({ chunk, previewChars = 150 }: ChunkCardProps) {
           )}
         </p>
         {hasMore && (
-          <CollapsibleTrigger asChild>
-            <button className="mt-1 text-xs text-primary hover:underline focus:outline-none">
-              {open ? "Show less" : "Show more"}
-            </button>
+          <CollapsibleTrigger render={<button className="mt-1 text-xs text-primary hover:underline focus:outline-none" />}>
+            {open ? "Show less" : "Show more"}
           </CollapsibleTrigger>
         )}
         <CollapsibleContent />

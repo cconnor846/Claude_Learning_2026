@@ -61,6 +61,13 @@ class EvalResult(Base):
         ForeignKey("experiments.id", ondelete="CASCADE"),
         nullable=False,
     )
+    # Ground-truth chunk that the QA pair was generated from.
+    # SET NULL on delete: losing the chunk reference doesn't invalidate the result.
+    source_chunk_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("chunks.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     question: Mapped[str] = mapped_column(Text, nullable=False)
     expected_answer: Mapped[str] = mapped_column(Text, nullable=False)
     # retrieved_chunks stores chunk IDs and their similarity scores

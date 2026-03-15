@@ -53,6 +53,9 @@ minio-data/
 postgres-data/
 redis-data/
 
+# Generated eval datasets — can be regenerated; don't commit large JSON files
+evals/datasets/*.json
+
 # =============================================================================
 # Editors & OS
 # =============================================================================

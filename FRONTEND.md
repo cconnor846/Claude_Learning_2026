@@ -690,10 +690,10 @@ Steps marked **[BACKEND]** require backend changes before the frontend step can 
 9. ✅ **`lib/hooks/useExperiments.ts`** — SWR + 5s polling while experiments running
 10. ✅ **`lib/hooks/useExperiment.ts`** — single experiment SWR hook
 11. ✅ **`lib/hooks/useChat.ts`** — SSE state machine (idle → sending → streaming_sources → streaming_tokens → done → error)
-12. **`components/documents/PipelineStepBadge.tsx`** — step sequence component [requires P1]
-13. **`/documents` page** — UploadZone + DocumentTable (with PipelineStepBadge) + DocumentDrawer + ChunkInspector (with GlossaryTooltip + chunk metadata enhancements)
-14. **`/chat` page** — ConfigPanel (with GlossaryTooltips), ChatThread, SourceCards (with RelativeScoreBar), RetrievalExplainer
-15. **`/experiments` page** — GenerateDatasetForm + CreateRunDialog + ExperimentTable (with GlossaryTooltips) + CompareTable (URL-driven compare mode)
-16. **`/experiments/[id]` page** — AggregateScores + ResultsTable with judge reasoning expand rows [requires P2]
-17. **`/dashboard` page** — stat cards + recent documents + recent experiments + quick actions
-18. **NavBar + root layout** — wire navigation, TooltipProvider, Toaster
+12. ✅ **`components/documents/PipelineStepBadge.tsx`** — step sequence component
+13. ✅ **`/documents` page** — UploadZone + DocumentTable (with PipelineStepBadge) + DocumentDrawer + ChunkInspector (with GlossaryTooltip + chunk metadata enhancements)
+14. ✅ **`/chat` page** — ConfigPanel (with GlossaryTooltips), SourceCards (with RelativeScoreBar), RetrievalExplainer, MessageBubble, ChatInput
+15. ✅ **`/experiments` page** — GenerateDatasetForm + CreateRunDialog + ExperimentTable (with GlossaryTooltips) + CompareTable (URL-driven compare mode)
+16. ✅ **`/experiments/[id]` page** — AggregateScores + ResultsTable with judge reasoning expand rows
+17. ✅ **`/dashboard` page** — stat cards + recent documents + recent experiments + quick actions
+18. ✅ **NavBar + root layout** — sticky header, active link highlight, TooltipProvider, Toaster, root redirect

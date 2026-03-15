@@ -120,7 +120,7 @@ async def _sse_generator(
         ).model_dump(mode="json")
         for c in chunks
     ]
-    yield f"event: sources\ndata: {json.dumps(sources)}\n\n"
+    yield f"data: {json.dumps({'type': 'sources', 'chunks': sources})}\n\n"
 
     # Event 2: token (one per streamed text delta)
     client = ClaudeClient()
@@ -129,10 +129,10 @@ async def _sse_generator(
         system=system_prompt,
         model=model,
     ):
-        yield f"event: token\ndata: {json.dumps(token)}\n\n"
+        yield f"data: {json.dumps({'type': 'token', 'text': token})}\n\n"
 
     # Event 3: done
-    yield "event: done\ndata: [DONE]\n\n"
+    yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
 # ---------------------------------------------------------------------------

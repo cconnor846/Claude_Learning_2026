@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from backend.core.config import settings
 from backend.core.storage import storage
 from backend.models.database import engine
+import backend.models  # noqa: F401 — registers all ORM models so relationships resolve
 
 
 # ---------------------------------------------------------------------------

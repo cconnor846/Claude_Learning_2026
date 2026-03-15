@@ -52,8 +52,8 @@ class VoyageEmbedder(BaseEmbedder):
     model_version: str = "1"
     BATCH_SIZE: int = 32        # Conservative batch size; Voyage allows up to 128
     INPUT_TYPE: str = "document"
-    MAX_RETRIES: int = 3
-    RETRY_BASE_DELAY: float = 1.0  # seconds; doubles on each retry
+    MAX_RETRIES: int = 5
+    RETRY_BASE_DELAY: float = 10.0  # seconds; doubles on each retry (10→20→40→80→160)
 
     def __init__(self) -> None:
         import voyageai
@@ -69,6 +69,8 @@ class VoyageEmbedder(BaseEmbedder):
 
         for batch_start in range(0, len(texts), self.BATCH_SIZE):
             batch = texts[batch_start : batch_start + self.BATCH_SIZE]
+            if batch_start > 0:
+                await asyncio.sleep(1.0)  # Pace batches to avoid immediate rate limiting
             vectors = await self._embed_batch_with_retry(batch, batch_start)
             all_vectors.extend(vectors)
 

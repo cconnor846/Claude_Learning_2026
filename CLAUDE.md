@@ -57,7 +57,7 @@ Favour explicitness, clarity, and measurability over cleverness or brevity.
 ### AI / ML
 | Concern | Tool | Notes |
 |---|---|---|
-| LLM | Anthropic Claude | claude-3-5-sonnet for quality, claude-3-5-haiku for eval/cheap tasks |
+| LLM | Anthropic Claude | claude-sonnet-4-6 for quality, claude-haiku-4-5-20251001 for eval/cheap tasks |
 | Embeddings | Voyage AI | voyage-3 model, via voyageai SDK |
 | Keyword search | rank-bm25 | For hybrid search alongside vector |
 | Observability | LangFuse (self-hosted) | Traces, evals, prompt management |
@@ -413,6 +413,7 @@ LOG_LEVEL=INFO
 - `backend/main.py` — chat router wired in at `/api/v1/chat`
 
 **Key decisions recorded:**
+- SSE format: single `data:` line per event with a JSON object containing a `type` field — `data: {"type": "sources", "chunks": [...]}`, `data: {"type": "token", "text": "..."}`, `data: {"type": "done"}`. Do NOT use the `event:` SSE field — the frontend parses `data:` lines only.
 - SSE event order: `sources` first (before generation), then `token` events, then `done` — UI can render source cards while Claude streams
 - Sources contain full chunk text — required for the UI source card design
 - `_register_prompt()` uses `INSERT ... ON CONFLICT DO NOTHING` — first request writes, all subsequent requests are no-ops; no ORM to avoid reserved-name conflicts with `text()`
@@ -420,6 +421,10 @@ LOG_LEVEL=INFO
 - `ClaudeClient.stream()` accepts `list[MessageParam]` — already multi-turn capable at the SDK level; only the route layer is single-turn for now
 - `complete()` defaults to haiku — intended for eval/batch tasks (Phase 6)
 - `X-Accel-Buffering: no` header disables nginx buffering for SSE
+- `ClaudeModel` enum uses `claude-sonnet-4-6` and `claude-haiku-4-5-20251001` — update these when new model versions are released
+- `backend/models/__init__.py` must import all table models — SQLAlchemy resolves string-based `relationship()` references only across classes it has seen; missing imports cause `InvalidRequestError` at first query
+- `backend/Dockerfile` must `COPY alembic.ini` alongside `pyproject.toml` and `uv.lock` — Alembic needs it at runtime for migrations
+- `docker-compose.yml` commands for backend and worker must use `uv run` prefix — binaries live in `.venv`, not on `$PATH`
 
 ---
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ConfigPanel } from "@/components/chat/ConfigPanel";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -54,7 +53,7 @@ export default function ChatPage() {
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <ScrollArea className="flex-1 p-4">
+        <div className="flex-1 overflow-y-auto p-4">
           {messages.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <p className="text-sm text-muted-foreground">
@@ -80,7 +79,7 @@ export default function ChatPage() {
               <div ref={bottomRef} />
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         <ChatInput status={status} onSend={handleSend} />
       </div>

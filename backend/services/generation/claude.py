@@ -22,8 +22,8 @@ from anthropic.types import MessageParam
 
 
 class ClaudeModel(str, enum.Enum):
-    sonnet = "claude-3-5-sonnet-20241022"
-    haiku = "claude-3-5-haiku-20241022"
+    sonnet = "claude-sonnet-4-6"
+    haiku = "claude-haiku-4-5-20251001"
 
 
 class ClaudeClient:

@@ -119,7 +119,7 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
-    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000
+    command: uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000
 
   worker:
     build:
@@ -134,7 +134,7 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    command: celery -A backend.workers.celery_app worker -Q ingestion,eval --loglevel=info
+    command: uv run celery -A backend.workers.celery_app worker -Q ingestion,eval --loglevel=info
 
   frontend:
     build:

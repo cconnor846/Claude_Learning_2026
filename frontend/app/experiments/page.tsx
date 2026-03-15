@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { GenerateDatasetForm } from "@/components/experiments/GenerateDatasetForm";
@@ -10,7 +10,7 @@ import { CompareTable } from "@/components/experiments/CompareTable";
 import { useExperiments } from "@/lib/hooks/useExperiments";
 import { useDocuments } from "@/lib/hooks/useDocuments";
 
-export default function ExperimentsPage() {
+function ExperimentsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const compareParam = searchParams.get("compare");
@@ -105,5 +105,13 @@ export default function ExperimentsPage() {
         mutate={mutate}
       />
     </div>
+  );
+}
+
+export default function ExperimentsPage() {
+  return (
+    <Suspense>
+      <ExperimentsContent />
+    </Suspense>
   );
 }

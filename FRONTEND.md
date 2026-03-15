@@ -351,8 +351,8 @@ Layout: full-width, single column.
 - **Documents** — ScrollArea with Checkbox list of ready documents; "All documents" when none selected
 - Config values held in React state, passed to `useChat`
 
-**ChatThread** (center, ScrollArea, fills height):
-- Scrolls to bottom on new content
+**ChatThread** (center, plain `div` with `overflow-y-auto`, fills height):
+- Scrolls to bottom on new content — uses a native scrollable div, NOT shadcn `ScrollArea`. `ScrollArea` wraps content in a Radix viewport that breaks `scrollIntoView` and hides the native scrollbar.
 - Empty state: "Ask a question about your documents."
 - Message list: alternating user/assistant turns
 - **User MessageBubble:** right-aligned, gray background

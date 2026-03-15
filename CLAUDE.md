@@ -423,16 +423,42 @@ LOG_LEVEL=INFO
 
 ---
 
-### Phase 6 — Evaluation (NOT STARTED)
+### Phase 6 — Evaluation ✅ COMPLETE
 
-**Start next session by planning Phase 6.**
+**Completed on 2026-03-14**
 
-Planned work:
-- `backend/services/evaluation/synthetic.py` — QA pair generation from docs
-- `backend/services/evaluation/metrics.py` — faithfulness, relevance, recall
-- `backend/workers/tasks/eval.py` — async eval run tasks
-- `backend/api/routes/evals.py` — eval run endpoints
-- Eval dataset storage in `evals/datasets/`
+| File | Purpose |
+|---|---|
+| `backend/migrations/versions/a4f2e8c19d3b_add_source_chunk_id_to_eval_results.py` | Adds `source_chunk_id` (UUID FK → `chunks`, `ON DELETE SET NULL`) to `eval_results` |
+| `backend/services/evaluation/__init__.py` | Package init |
+| `backend/services/evaluation/synthetic.py` | `SyntheticGenerator` — haiku generates `{question, answer}` JSON per chunk; saves to `evals/datasets/<doc_id>_<timestamp>.json` |
+| `backend/services/evaluation/metrics.py` | `score_faithfulness`, `score_relevance` (LLM-as-judge, 1–5 → 0.0–1.0), `score_recall` (binary, pure Python) |
+| `backend/workers/tasks/eval.py` | `run_eval_experiment` Celery task — retrieve → generate (haiku) → score all three → aggregate → mark complete |
+| `backend/api/routes/evals.py` | 4 endpoints: `POST /datasets/generate`, `POST /runs`, `GET /runs`, `GET /runs/{id}` |
+
+**Updated files:**
+- `backend/models/tables/experiments.py` — `source_chunk_id` column on `EvalResult`
+- `backend/workers/celery_app.py` — includes eval task module; routes `run_eval_experiment` to `eval` queue
+- `backend/main.py` — evals router wired in at `/api/v1/evals`
+- `docker-compose.yml` — worker consumes `-Q ingestion,eval`
+- `.gitignore` — `evals/datasets/*.json` ignored (regeneratable)
+
+**Key decisions recorded:**
+- `source_chunk_id` added via migration (not stored in JSONB) — explicit FK enables future JOIN-based analysis
+- `ON DELETE SET NULL` on `source_chunk_id` FK — losing a chunk doesn't invalidate the EvalResult row or its scores
+- LLM-as-judge prompt asks for integer 1–5; normalised: `(rating - 1) / 4` → 0.0–1.0
+- `score_recall` is pure Python — no LLM call needed, just set membership on chunk IDs
+- All DB work (retrieval + EvalResult inserts) happens inside the Celery task session; `_mark_experiment_failed()` uses a fresh session after rollback, matching the ingestion task pattern
+- `VoyageQueryEmbedder` instantiated per question inside the eval task — same stateless pattern as the search route
+- Separate `eval` queue — eval jobs don't block document ingestion
+- `evals/datasets/` tracked with `.gitkeep`; JSON files git-ignored
+
+**Workflow:**
+1. Ingest a document and wait for `status=ready`
+2. `POST /api/v1/evals/datasets/generate` — generates QA pairs, returns `dataset_file`
+3. `POST /api/v1/evals/runs` — creates experiment with `dataset_file` in config, enqueues task
+4. Poll `GET /api/v1/evals/runs/{id}` until `status=complete`
+5. `results` field contains `avg_faithfulness`, `avg_relevance`, `avg_recall`
 
 ---
 

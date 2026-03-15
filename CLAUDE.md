@@ -462,6 +462,46 @@ LOG_LEVEL=INFO
 
 ---
 
-### Phase 7+ — Not started
+### Phase 7 — Frontend 🔄 IN PROGRESS
 
-Frontend, observability (LangFuse wiring) — all pending.
+**Authoritative reference: `FRONTEND.md`** — read it before writing any frontend code.
+
+**Completed on 2026-03-15**
+
+Backend prerequisites (shipped as part of Phase 7):
+- `pipeline_step: str | None` added to `Document` model + API — set at each ingest step (`parsing` → `chunking` → `embedding` → `storing`), cleared on `ready`
+- `faithfulness_reasoning` + `relevance_reasoning` added to `EvalResult` — judge prompt now returns `{"rating": 1-5, "reasoning": "..."}` JSON; `max_tokens` raised to 150
+- Migration `b7d3f1a92e05` covers both schema changes
+
+Frontend foundation (Next.js 14, TypeScript, Tailwind, shadcn/ui):
+- All 17 shadcn components installed; SWR installed
+- `lib/glossary.ts` — 12 RAG term definitions for inline tooltips
+- `lib/types.ts` — all TypeScript interfaces mirroring backend Pydantic models
+- `lib/api.ts` — typed fetch wrappers for all backend endpoints
+- `lib/hooks/` — useDocuments (3s poll), useDocument, useExperiments (5s poll), useExperiment, useChat (SSE state machine)
+- `components/shared/` — GlossaryTooltip, ScoreBar, RelativeScoreBar, StatusBadge, ChunkCard
+
+**Still to build:** PipelineStepBadge, /documents page, /chat page (with RetrievalExplainer), /experiments pages (with CompareTable + judge reasoning), /dashboard, NavBar + layout.
+
+**Educational features — core to Phase 7 design:**
+The platform prioritises making the RAG pipeline legible. Seven educational features are baked into the UI:
+1. Ingestion pipeline step tracker (PipelineStepBadge — shows parsing/chunking/embedding/storing live)
+2. Retrieval explainer in chat (collapsible panel with plain-English strategy description + RRF breakdown)
+3. Inline glossary tooltips (GlossaryTooltip wraps key terms: cosine similarity, BM25, RRF, top-k, faithfulness, recall, etc.)
+4. Judge reasoning visibility (faithfulness + relevance reasoning shown in eval result expand rows)
+5. Experiment comparison view (CompareTable, URL-driven via `?compare=id1,id2`)
+6. Relative score bars in source cards (RelativeScoreBar — width = score / max_score_in_set)
+7. Enhanced chunk metadata in ChunkInspector (char count bar, overlap indicator, embedding model badge)
+
+**Key frontend decisions:**
+- No `any` types — every value typed
+- No direct `fetch` in components — always via `lib/api.ts`
+- No SWR for mutations — use `fetch` + `mutate()` to invalidate cache
+- Server components are the default; `"use client"` only where interactivity requires it
+- `NEXT_PUBLIC_API_URL` env var points to backend (default: `http://localhost:8000`)
+
+---
+
+### Phase 8+ — Not started
+
+Observability (LangFuse wiring), Text-to-SQL — all pending.

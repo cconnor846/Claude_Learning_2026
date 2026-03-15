@@ -144,8 +144,12 @@ async def _async_eval_pipeline(experiment_id: str) -> dict[str, object]:
 
                 # Score
                 context_texts = [c.content for c in chunks]
-                faithfulness = await score_faithfulness(context_texts, generated_answer)
-                relevance = await score_relevance(question, generated_answer)
+                faithfulness, faithfulness_reasoning = await score_faithfulness(
+                    context_texts, generated_answer
+                )
+                relevance, relevance_reasoning = await score_relevance(
+                    question, generated_answer
+                )
                 recall = score_recall(source_chunk_id, retrieved_chunk_ids)
 
                 faithfulness_scores.append(faithfulness)
@@ -165,7 +169,9 @@ async def _async_eval_pipeline(experiment_id: str) -> dict[str, object]:
                     },
                     generated_answer=generated_answer,
                     faithfulness_score=faithfulness,
+                    faithfulness_reasoning=faithfulness_reasoning or None,
                     relevance_score=relevance,
+                    relevance_reasoning=relevance_reasoning or None,
                     recall_score=recall,
                 )
                 session.add(result_row)

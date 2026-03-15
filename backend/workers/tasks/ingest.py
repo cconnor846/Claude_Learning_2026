@@ -59,6 +59,7 @@ async def _async_pipeline(document_id: str) -> dict[str, str]:
                 raise ValueError(f"Document {document_id} not found in database")
 
             doc.status = DocumentStatus.processing
+            doc.pipeline_step = "parsing"
             await session.commit()
             logger.info("Ingestion started: document=%s", document_id)
 
@@ -85,6 +86,8 @@ async def _async_pipeline(document_id: str) -> dict[str, str]:
             # ------------------------------------------------------------------
             # Step 4: Chunk the text
             # ------------------------------------------------------------------
+            doc.pipeline_step = "chunking"
+            await session.commit()
             chunk_data_list = await chunker.chunk(
                 text=parsed.text,
                 page_texts=parsed.page_texts,
@@ -98,6 +101,8 @@ async def _async_pipeline(document_id: str) -> dict[str, str]:
             # ------------------------------------------------------------------
             # Step 5: Embed all chunks
             # ------------------------------------------------------------------
+            doc.pipeline_step = "embedding"
+            await session.commit()
             texts = [cd.content for cd in chunk_data_list]
             vectors = await embedder.embed(texts)
             logger.debug("Embedded %d chunks via %s", len(vectors), embedder.model_name)
@@ -105,6 +110,8 @@ async def _async_pipeline(document_id: str) -> dict[str, str]:
             # ------------------------------------------------------------------
             # Step 6: Insert Chunk + Embedding records
             # ------------------------------------------------------------------
+            doc.pipeline_step = "storing"
+            await session.commit()
             for cd, vector in zip(chunk_data_list, vectors):
                 chunk = Chunk(
                     document_id=doc_uuid,
@@ -134,6 +141,7 @@ async def _async_pipeline(document_id: str) -> dict[str, str]:
             # Step 7: Mark document as ready and commit everything
             # ------------------------------------------------------------------
             doc.status = DocumentStatus.ready
+            doc.pipeline_step = None
             await session.commit()
 
             chunk_count = len(chunk_data_list)

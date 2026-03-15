@@ -81,7 +81,9 @@ class EvalResultItem(BaseModel):
     generated_answer: str | None
     source_chunk_id: uuid.UUID | None
     faithfulness_score: float | None
+    faithfulness_reasoning: str | None
     relevance_score: float | None
+    relevance_reasoning: str | None
     recall_score: float | None
     created_at: datetime
 
@@ -284,7 +286,9 @@ async def get_experiment(
                 generated_answer=r.generated_answer,
                 source_chunk_id=r.source_chunk_id,
                 faithfulness_score=r.faithfulness_score,
+                faithfulness_reasoning=r.faithfulness_reasoning,
                 relevance_score=r.relevance_score,
+                relevance_reasoning=r.relevance_reasoning,
                 recall_score=r.recall_score,
                 created_at=r.created_at,
             )

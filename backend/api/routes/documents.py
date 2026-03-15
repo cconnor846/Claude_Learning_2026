@@ -41,6 +41,7 @@ class DocumentListItem(BaseModel):
     mime_type: str
     file_size_bytes: int
     status: DocumentStatus
+    pipeline_step: str | None  # Active step while status=processing, null otherwise
     error_message: str | None
     created_at: datetime
     updated_at: datetime
@@ -79,6 +80,7 @@ def _document_to_list_item(doc: Document) -> DocumentListItem:
         mime_type=doc.mime_type,
         file_size_bytes=doc.file_size_bytes,
         status=doc.status,
+        pipeline_step=doc.pipeline_step,
         error_message=doc.error_message,
         created_at=doc.created_at,
         updated_at=doc.updated_at,

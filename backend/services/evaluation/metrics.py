@@ -1,22 +1,26 @@
 """RAG evaluation metrics.
 
-Three scorers, all returning float 0.0–1.0:
+Three scorers:
 
   faithfulness — LLM-as-judge: does the answer contain only information
                  from the retrieved context? Detects hallucination.
+                 Returns (score: float, reasoning: str).
 
   relevance    — LLM-as-judge: is the answer actually responsive to the
                  question? Detects topic drift and non-answers.
+                 Returns (score: float, reasoning: str).
 
   recall       — Pure Python binary: was the ground-truth source chunk
                  present in the top-k retrieved set? Measures retrieval
                  coverage independently of generation quality.
+                 Returns float 0.0 or 1.0.
 
-Faithfulness and relevance prompt Claude haiku to rate on a 1–5 scale.
-The raw integer is normalised: score = (rating - 1) / 4, so 1 → 0.0 and
-5 → 1.0.
+Faithfulness and relevance ask Claude haiku to rate on a 1–5 scale and
+provide a one-sentence reasoning. The raw integer is normalised:
+score = (rating - 1) / 4, so 1 → 0.0 and 5 → 1.0.
 """
 
+import json
 import logging
 import re
 
@@ -26,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 _JUDGE_SYSTEM = (
     "You are an expert evaluator of AI-generated answers. "
-    "Respond with a single integer from 1 to 5 and nothing else."
+    'Respond with valid JSON only, in the format: {"rating": <integer 1-5>, "reasoning": "<one sentence explanation>"}'
 )
 
 _FAITHFULNESS_PROMPT = """\
@@ -40,7 +44,7 @@ On a scale of 1-5, how faithfully does the answer stick to the provided context?
 1 = the answer contains significant information NOT present in the context (hallucination)
 5 = every claim in the answer is directly supported by the context
 
-Respond with a single integer (1-5):"""
+Respond with JSON only:"""
 
 _RELEVANCE_PROMPT = """\
 Question:
@@ -53,22 +57,40 @@ On a scale of 1-5, how relevant and responsive is the answer to the question?
 1 = the answer does not address the question at all
 5 = the answer directly and completely addresses the question
 
-Respond with a single integer (1-5):"""
+Respond with JSON only:"""
 
 
-def _parse_score(raw: str) -> float:
-    """Extract first digit 1–5 from judge response and normalise to [0.0, 1.0]."""
-    match = re.search(r"[1-5]", raw.strip())
-    if match:
-        return (int(match.group()) - 1) / 4.0
-    logger.warning("Could not parse score from judge response: %r", raw[:100])
-    return 0.0
+def _parse_judge_response(raw: str) -> tuple[float, str]:
+    """Parse judge JSON response into (normalised_score, reasoning).
+
+    Handles two formats for robustness:
+    - New: {"rating": 3, "reasoning": "..."}
+    - Fallback: bare integer (legacy / malformed responses)
+
+    Returns (0.0, "") if parsing fails entirely.
+    """
+    raw = raw.strip()
+    try:
+        data = json.loads(raw)
+        rating = int(data["rating"])
+        reasoning: str = str(data.get("reasoning", ""))
+        score = (max(1, min(5, rating)) - 1) / 4.0
+        return score, reasoning
+    except (json.JSONDecodeError, KeyError, ValueError):
+        # Fallback: extract first digit 1–5 from raw text
+        match = re.search(r"[1-5]", raw)
+        if match:
+            score = (int(match.group()) - 1) / 4.0
+            logger.warning("Judge response was not valid JSON, fell back to digit parse: %r", raw[:100])
+            return score, ""
+        logger.warning("Could not parse judge response at all: %r", raw[:100])
+        return 0.0, ""
 
 
 async def score_faithfulness(
     context_chunks: list[str],
     generated_answer: str,
-) -> float:
+) -> tuple[float, str]:
     """LLM-as-judge: does the answer stay within the retrieved context?
 
     Args:
@@ -76,7 +98,7 @@ async def score_faithfulness(
         generated_answer: The answer produced by the RAG pipeline.
 
     Returns:
-        Float in [0.0, 1.0] — higher means more faithful.
+        Tuple of (score, reasoning) where score is in [0.0, 1.0].
     """
     context = "\n\n---\n\n".join(context_chunks)
     prompt = _FAITHFULNESS_PROMPT.format(context=context, answer=generated_answer)
@@ -85,15 +107,15 @@ async def score_faithfulness(
         messages=[{"role": "user", "content": prompt}],
         system=_JUDGE_SYSTEM,
         model=ClaudeModel.haiku,
-        max_tokens=16,
+        max_tokens=150,
     )
-    return _parse_score(raw)
+    return _parse_judge_response(raw)
 
 
 async def score_relevance(
     question: str,
     generated_answer: str,
-) -> float:
+) -> tuple[float, str]:
     """LLM-as-judge: is the answer responsive to the question?
 
     Args:
@@ -101,7 +123,7 @@ async def score_relevance(
         generated_answer: The answer produced by the RAG pipeline.
 
     Returns:
-        Float in [0.0, 1.0] — higher means more relevant.
+        Tuple of (score, reasoning) where score is in [0.0, 1.0].
     """
     prompt = _RELEVANCE_PROMPT.format(question=question, answer=generated_answer)
     client = ClaudeClient()
@@ -109,9 +131,9 @@ async def score_relevance(
         messages=[{"role": "user", "content": prompt}],
         system=_JUDGE_SYSTEM,
         model=ClaudeModel.haiku,
-        max_tokens=16,
+        max_tokens=150,
     )
-    return _parse_score(raw)
+    return _parse_judge_response(raw)
 
 
 def score_recall(

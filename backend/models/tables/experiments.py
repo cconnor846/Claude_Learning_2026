@@ -74,7 +74,9 @@ class EvalResult(Base):
     retrieved_chunks: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     generated_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     faithfulness_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    faithfulness_reasoning: Mapped[str | None] = mapped_column(Text, nullable=True)
     relevance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    relevance_reasoning: Mapped[str | None] = mapped_column(Text, nullable=True)
     recall_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

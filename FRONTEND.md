@@ -53,31 +53,37 @@ frontend/
 ├── components/
 │   ├── ui/                      ← shadcn auto-generated (do not hand-edit)
 │   ├── documents/
-│   │   ├── UploadZone.tsx       ← Drag-and-drop file uploader
-│   │   ├── DocumentTable.tsx    ← Paginated document list with SWR polling
-│   │   ├── DocumentDrawer.tsx   ← Sheet drawer: metadata + chunk inspector
-│   │   └── ChunkInspector.tsx   ← Paginated chunk table inside the drawer
+│   │   ├── UploadZone.tsx           ← Drag-and-drop file uploader
+│   │   ├── DocumentTable.tsx        ← Paginated document list with SWR polling
+│   │   ├── DocumentDrawer.tsx       ← Sheet drawer: metadata + chunk inspector
+│   │   ├── ChunkInspector.tsx       ← Paginated chunk table inside the drawer
+│   │   └── PipelineStepBadge.tsx    ← Step progress indicator during ingestion
 │   ├── chat/
-│   │   ├── ConfigPanel.tsx      ← Strategy, top-k, document filter sidebar
-│   │   ├── ChatThread.tsx       ← Scrollable message history
-│   │   ├── MessageBubble.tsx    ← User and assistant message rendering
-│   │   ├── SourceCard.tsx       ← Individual retrieved chunk card
-│   │   └── ChatInput.tsx        ← Textarea + send button
+│   │   ├── ConfigPanel.tsx          ← Strategy, top-k, document filter sidebar
+│   │   ├── ChatThread.tsx           ← Scrollable message history
+│   │   ├── MessageBubble.tsx        ← User and assistant message rendering
+│   │   ├── SourceCard.tsx           ← Individual retrieved chunk card (with relative score bar)
+│   │   ├── RetrievalExplainer.tsx   ← Collapsible "how retrieval worked" panel
+│   │   └── ChatInput.tsx            ← Textarea + send button
 │   ├── experiments/
 │   │   ├── GenerateDatasetForm.tsx  ← Dataset generation form card
 │   │   ├── CreateRunDialog.tsx      ← Dialog for creating an experiment run
 │   │   ├── ExperimentTable.tsx      ← List with SWR polling + score display
 │   │   ├── AggregateScores.tsx      ← Four stat tiles on detail page
-│   │   └── ResultsTable.tsx         ← Per-question results with expand
+│   │   ├── ResultsTable.tsx         ← Per-question results with expand + judge reasoning
+│   │   └── CompareTable.tsx         ← Side-by-side multi-experiment comparison
 │   └── shared/
-│       ├── NavBar.tsx           ← Top navigation bar
-│       ├── StatusBadge.tsx      ← Colored badge for document/experiment status
-│       ├── ScoreBar.tsx         ← Horizontal bar + number for eval scores
-│       └── ChunkCard.tsx        ← Reused in SourceCard and ChunkInspector
+│       ├── NavBar.tsx               ← Top navigation bar
+│       ├── StatusBadge.tsx          ← Colored badge for document/experiment status
+│       ├── ScoreBar.tsx             ← Horizontal bar + number for eval scores
+│       ├── RelativeScoreBar.tsx     ← Score bar sized relative to set max (used in SourceCard)
+│       ├── GlossaryTooltip.tsx      ← Tooltip wrapper for technical terms
+│       └── ChunkCard.tsx            ← Reused in SourceCard and ChunkInspector
 │
 └── lib/
     ├── api.ts                   ← All typed fetch wrappers
     ├── types.ts                 ← All TypeScript interfaces
+    ├── glossary.ts              ← Static GLOSSARY map: term → tooltip definition
     └── hooks/
         ├── useDocuments.ts      ← SWR hook, polling logic
         ├── useDocument.ts       ← Single document + chunks
@@ -314,7 +320,7 @@ Layout: full-width, single column.
 
 **DocumentTable** (below upload zone):
 - Columns: Filename | Type | Size | Status | Chunks | Uploaded | Actions
-- `StatusBadge` for status column
+- Status column: `PipelineStepBadge` while `processing`, `StatusBadge` for all other states
 - `Tooltip` on `failed` badge showing `error_message`
 - Chunks column: shows count when `ready`, dash otherwise
 - Actions: "Inspect" button (opens drawer), delete icon button (opens confirm Dialog)
@@ -340,8 +346,8 @@ Layout: full-width, single column.
 **Layout:** `flex h-screen` — left panel fixed width, right panel fills remaining space.
 
 **ConfigPanel** (left, `w-72`, sticky):
-- **Strategy** — RadioGroup: vector | bm25 | hybrid (default: hybrid)
-- **Top-k** — Slider 1–20 with numeric label (default: 5)
+- **Strategy** — RadioGroup: vector | bm25 | hybrid (default: hybrid). Each label wrapped in `GlossaryTooltip`.
+- **Top-k** — Slider 1–20 with numeric label (default: 5). Label wrapped in `GlossaryTooltip`.
 - **Documents** — ScrollArea with Checkbox list of ready documents; "All documents" when none selected
 - Config values held in React state, passed to `useChat`
 
@@ -351,9 +357,10 @@ Layout: full-width, single column.
 - Message list: alternating user/assistant turns
 - **User MessageBubble:** right-aligned, gray background
 - **Assistant MessageBubble:** left-aligned, contains:
-  1. **Source cards row** (horizontal ScrollArea) — rendered immediately on `sources` event, before any tokens arrive. Each `SourceCard`: document filename (bold), chunk index + page number, score badge, 150-char content preview with Collapsible to expand.
-  2. **Streaming text** — builds token by token. Blinking cursor `|` using CSS animation while `streaming_tokens`. No cursor when `done`.
-  3. **Copy button** — appears after `done`, copies full generated text to clipboard.
+  1. **Source cards row** (horizontal ScrollArea) — rendered immediately on `sources` event, before any tokens arrive. Each `SourceCard`: document filename (bold), chunk index + page number, `RelativeScoreBar` (score sized relative to max score in set), 150-char content preview with Collapsible to expand.
+  2. **RetrievalExplainer** — collapsed by default, sits between source cards and streaming text. See Educational Features § 2.
+  3. **Streaming text** — builds token by token. Blinking cursor `|` using CSS animation while `streaming_tokens`. No cursor when `done`.
+  4. **Copy button** — appears after `done`, copies full generated text to clipboard.
 
 **ChatInput** (bottom, sticky):
 - Textarea (auto-resize up to 4 lines)
@@ -377,14 +384,22 @@ Layout: full-width, single column.
 **Experiment runs header row:**
 - Title "Experiment Runs"
 - "+ New Run" Button → opens CreateRunDialog
+- "Compare" toggle button → enters compare mode (see below)
 
 **ExperimentTable:**
 - Columns: Name | Strategy | Status | Faithfulness | Relevance | Recall | Questions | Created | Actions
+- Score column headers wrapped in `GlossaryTooltip`
 - Score columns: colored number (green ≥ 0.8, yellow 0.5–0.8, red < 0.5), dash when not yet complete
 - Recall column: shown as fraction e.g. `14/18` derived from `avg_recall × total_questions`
 - StatusBadge with spinner animation for `running`
 - SWR polling: 5s when any experiment is pending/running
-- Click row → navigate to `/experiments/{id}`
+- Click row → navigate to `/experiments/{id}` (normal mode) or toggle checkbox (compare mode)
+
+**Compare mode** (toggled via "Compare" button):
+- Rows show checkboxes; user selects 2–4 completed experiments
+- `CompareTable` renders below the list showing selected runs side-by-side
+- State is URL-driven: `?compare=id1,id2` — shareable links
+- See Educational Features § 5 for full CompareTable spec
 
 **CreateRunDialog** (Dialog):
 - Name: Input
@@ -417,9 +432,14 @@ Layout: full-width, single column.
 - **Results tab:**
   - Columns: Question | Expected | Generated | Faithful | Relevant | Recall
   - Text columns: 80-char truncation, Collapsible to show full text
-  - Score columns: colored number
-  - Recall: green checkmark (`✓`) for 1.0, red cross (`✗`) for 0.0
-  - Click row → expand inline detail: full question, expected vs generated side-by-side
+  - Score columns: `GlossaryTooltip` on header labels; colored number in cells
+  - Recall: green checkmark (`✓`) for 1.0, red cross (`✗`) for 0.0 — header has `GlossaryTooltip`
+  - Click row → expand inline detail:
+    - Full question text
+    - Expected answer vs generated answer side-by-side (two-column grid)
+    - Faithfulness score + quoted judge reasoning block (italic, gray background)
+    - Relevance score + quoted judge reasoning block
+    - Recall result — no reasoning (pure Python binary check)
 - **Raw tab:**
   - Full JSON of all `eval_results` in a `<pre>` block inside ScrollArea
   - Useful for exporting/debugging
@@ -484,17 +504,192 @@ Logo/title: "RAG Platform" left-aligned.
 
 ---
 
+## Educational Features
+
+A core goal of this platform is making the RAG pipeline legible and teachable.
+The following features are first-class requirements, not nice-to-haves.
+
+---
+
+### Feature 1 — Ingestion Pipeline Step Tracker
+
+**What it teaches:** What actually happens to a file after upload — the biggest black box for newcomers.
+
+**Backend prerequisite:** Add a `pipeline_step: str | None` field to the Document API response,
+updated by the Celery task as each step starts (`"parsing"`, `"chunking"`, `"embedding"`).
+No migration needed — derive from existing `status` or add a column.
+
+**Frontend:**
+- `PipelineStepBadge` component replaces the static `processing` label while a doc is in flight
+- Shows a step sequence: `Upload → Parse → Chunk → Embed → Store`
+- Active step highlighted; completed steps grayed-out with checkmark
+- Shown in both the `DocumentTable` status column and the `DocumentDrawer` header
+- Uses existing `StatusBadge` for terminal states (`ready`, `failed`, `pending`)
+
+---
+
+### Feature 2 — Retrieval Explainer in Chat
+
+**What it teaches:** How each retrieval strategy works; why these specific chunks were returned.
+
+**Backend prerequisite:** None. All required data is already in the `SearchResponse`.
+
+**Frontend (`RetrievalExplainer` component):**
+- Rendered inside each assistant `MessageBubble`, between source cards and streaming text
+- Collapsible (collapsed by default, "How retrieval worked ▾" trigger)
+- Content:
+  - Strategy badge + one-sentence plain-English description:
+    - `vector` → "Chunks were ranked by cosine similarity between your query embedding and document embeddings."
+    - `bm25` → "Chunks were ranked by BM25 keyword frequency — no embeddings used."
+    - `hybrid` → "Vector and BM25 rankings were fused using Reciprocal Rank Fusion (RRF, k=60). Each chunk's RRF score = 1/(k + vector_rank) + 1/(k + bm25_rank)."
+  - Stat row: `{top_k} chunks returned` · `score range {min}–{max}`
+  - For hybrid only: a small table showing top-5 chunks with their vector rank, BM25 rank, and final RRF rank side by side
+
+---
+
+### Feature 3 — Inline Glossary Tooltips
+
+**What it teaches:** RAG terminology in context, without requiring the user to leave the page.
+
+**Backend prerequisite:** None.
+
+**Frontend (`GlossaryTooltip` component):**
+```tsx
+<GlossaryTooltip term="cosine similarity">
+  Cosine similarity
+</GlossaryTooltip>
+```
+Wraps any text node with a `Tooltip` (shadcn). The tooltip content is a short definition
+stored in a static `GLOSSARY` map in `lib/glossary.ts`.
+
+Terms to cover (at minimum):
+
+| Term | Tooltip text |
+|---|---|
+| cosine similarity | A score (0–1) measuring the angle between two embedding vectors. 1 = identical meaning, 0 = unrelated. |
+| BM25 | A keyword ranking algorithm based on term frequency and document length. No embeddings — fast and interpretable. |
+| Reciprocal Rank Fusion (RRF) | A fusion method: score = Σ 1/(k + rank_i). Combines rankings from multiple retrievers without needing comparable scores. |
+| top-k | The number of chunks returned by retrieval. Higher k = more context for the LLM, but also more noise. |
+| chunking strategy | How a document is split into pieces. Chunk size and overlap affect what fits in a single retrieved result. |
+| embedding | A fixed-length vector of numbers representing the semantic meaning of a piece of text. Similar texts have similar vectors. |
+| faithfulness | Does the generated answer only contain information present in the retrieved chunks? LLM-as-judge scores 1–5. |
+| relevance | Are the retrieved chunks actually relevant to the question? LLM-as-judge scores 1–5. |
+| recall | Did retrieval return the chunk that was used to generate the ground-truth answer? Binary: 1 or 0. |
+| LLM-as-judge | Using a language model (Claude Haiku) to score answer quality on a numeric scale, instead of exact-match metrics. |
+
+Apply `GlossaryTooltip` in:
+- `ConfigPanel` (strategy labels, top-k label)
+- `RetrievalExplainer` (all strategy names)
+- `AggregateScores` tile labels
+- `ResultsTable` column headers
+- `ExperimentTable` score column headers
+
+---
+
+### Feature 4 — Judge Reasoning Visibility
+
+**What it teaches:** Why a score was given — makes eval results genuinely informative rather than opaque numbers.
+
+**Backend prerequisite (required before building this UI):**
+- Update `score_faithfulness` and `score_relevance` in `backend/services/evaluation/metrics.py`
+  to return `(score: float, reasoning: str)` tuples.
+  The LLM-as-judge prompt should ask for JSON: `{"rating": 3, "reasoning": "..."}`
+- Add `faithfulness_reasoning: str | None` and `relevance_reasoning: str | None`
+  columns to `eval_results` table via Alembic migration.
+- Populate in `backend/workers/tasks/eval.py`.
+
+**Frontend:**
+- In `ResultsTable`, the per-question expanded row (click to expand) includes:
+  - Full question text
+  - Expected answer vs generated answer side-by-side
+  - **Faithfulness score + judge reasoning** in a quoted block
+  - **Relevance score + judge reasoning** in a quoted block
+  - Recall result (checkmark/cross) — no reasoning needed (pure Python)
+
+---
+
+### Feature 5 — Experiment Comparison View
+
+**What it teaches:** How retrieval strategy, top-k, or chunking strategy changes affect quality scores.
+
+**Backend prerequisite:** None. Uses existing `listExperiments` + `getExperiment` API calls.
+
+**Frontend:**
+- On `/experiments`, add a **"Compare" toggle** button in the header row.
+- In compare mode, experiment table rows get checkboxes; select 2–4 runs.
+- A `CompareTable` appears below (or replaces the list) showing:
+  - Row per selected experiment, columns: Name | Strategy | Top-k | Faithfulness | Relevance | Recall | Questions
+  - Score cells color-coded as usual
+  - A delta column for the 2nd+ experiment: `+0.12` green / `-0.05` red vs the first selected run
+- "Exit compare" button returns to normal list view.
+- State is URL-driven: `/experiments?compare=id1,id2` so it's shareable.
+
+---
+
+### Feature 6 — Relative Score Bar in Source Cards
+
+**What it teaches:** Whether the top chunk was dramatically more relevant or only marginally better than the others.
+
+**Backend prerequisite:** None. All scores are in the `sources` SSE event.
+
+**Frontend (`RelativeScoreBar` component):**
+- Replaces the raw score badge in `SourceCard`
+- A thin horizontal bar (`h-1.5`) inside each card whose filled width = `score / max_score_in_set × 100%`
+- The raw score number shown to the right of the bar
+- The max-scoring chunk gets a full-width bar; all others are proportional
+- Color follows the score color map (green/yellow/red based on absolute score value)
+- Passed `score` and `maxScore` as props; `maxScore` computed in `MessageBubble` before rendering cards
+
+---
+
+### Feature 7 — Enhanced Chunk Metadata in ChunkInspector
+
+**What it teaches:** Why chunk boundaries are where they are; how chunking parameters translate to real output.
+
+**Backend prerequisite:** None. The chunk API already returns `char_count`, `chunk_strategy`, metadata.
+
+**Frontend enhancements to `ChunkInspector`:**
+- **Char count column:** show as `{char_count} / 1000 chars` with a mini inline bar (same `RelativeScoreBar` pattern, max=1000)
+- **Overlap indicator:** for consecutive chunks, show a small badge `~{n} chars overlap` derived by
+  comparing the end of chunk N with the start of chunk N+1 (client-side string match, best-effort)
+- **Embedding model badge:** show the model name from chunk metadata (e.g., `voyage-3`) as a small gray Badge
+- **Strategy tooltip:** the strategy name cell gets a `GlossaryTooltip` wrapping `"chunking strategy"`
+
+---
+
 ## Build Order (within Phase 7)
 
-Build in this sequence so each step is independently testable:
+Build in this sequence so each step is independently testable.
+Steps marked **[BACKEND]** require backend changes before the frontend step can be completed.
 
-1. **`lib/types.ts` + `lib/api.ts`** — foundation everything else imports
-2. **`lib/hooks/useDocuments.ts`** — SWR + polling
-3. **`/documents` page** — first fully working page: upload + list + drawer
-4. **`lib/hooks/useChat.ts`** — SSE state machine
-5. **`/chat` page** — most complex; validate SSE end-to-end
-6. **`lib/hooks/useExperiments.ts` + `useExperiment.ts`**
-7. **`/experiments` page** — generate + create run + list
-8. **`/experiments/[id]` page** — detail + results table
-9. **`/dashboard` page** — pulls from hooks already built
-10. **NavBar + layout** — wire navigation, test full flow
+### Prerequisites (backend changes, do these first)
+
+**P1 — Pipeline step field**
+- Add `pipeline_step: str | None` to `Document` ORM model + API response schema
+- Update `backend/workers/tasks/ingest.py` to set the field at each pipeline step
+- Alembic migration required
+
+**P2 — Judge reasoning columns**
+- Add `faithfulness_reasoning: str | None` and `relevance_reasoning: str | None` to `EvalResult`
+- Update `backend/services/evaluation/metrics.py` to parse reasoning from judge response JSON
+- Update `backend/workers/tasks/eval.py` to persist reasoning
+- Alembic migration required
+
+---
+
+### Frontend build steps
+
+1. **`lib/glossary.ts`** — static GLOSSARY map (all term definitions); no deps
+2. **`lib/types.ts` + `lib/api.ts`** — add `pipeline_step` to `DocumentListItem`; add reasoning fields to `EvalResultItem`
+3. **`components/shared/GlossaryTooltip.tsx`** — thin wrapper, depends only on glossary + shadcn Tooltip
+4. **`components/shared/ScoreBar.tsx` + `RelativeScoreBar.tsx`** — shared scoring visuals
+5. **`lib/hooks/useDocuments.ts`** — SWR + polling logic
+6. **`components/documents/PipelineStepBadge.tsx`** — step sequence component [requires P1]
+7. **`/documents` page** — upload + list (with PipelineStepBadge) + drawer (with enhanced ChunkInspector + GlossaryTooltip)
+8. **`lib/hooks/useChat.ts`** — SSE state machine
+9. **`/chat` page** — ConfigPanel (with GlossaryTooltips), ChatThread, SourceCards (with RelativeScoreBar), RetrievalExplainer
+10. **`lib/hooks/useExperiments.ts` + `useExperiment.ts`**
+11. **`/experiments` page** — generate + create run + list + CompareTable (URL-driven compare mode)
+12. **`/experiments/[id]` page** — detail + results table with judge reasoning expand rows [requires P2]
+13. **`/dashboard` page** — pulls from hooks already built
+14. **NavBar + layout** — wire navigation, test full flow
